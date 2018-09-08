@@ -30,6 +30,7 @@ class ImdbSpider(scrapy.Spider):
             votes = votes_and_gross[0] if votes_and_gross else None
             gross = votes_and_gross[1] if len(votes_and_gross) > 1 else None
 
+            # TODO add field on whether the person is the director or an actor
             cast_selector = item.css('div.lister-item-content p')[2].css('a')
             cast = []
             for person in cast_selector:
