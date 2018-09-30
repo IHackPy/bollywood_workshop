@@ -17,8 +17,7 @@ class ImdbSpider(scrapy.Spider):
                   'page': 1}
         url = '{}/search/title?{}'.format(BASE_URL,
                                           urllib.parse.urlencode(params))
-        #yield scrapy.Request(url, callback=self.parse_list)
-        yield scrapy.Request('https://www.imdb.com/name/nm0451148/bio?ref_=nm_ov_bio_sm', callback=self.parse_bio)
+        yield scrapy.Request(url, callback=self.parse_list)
 
     def parse_list(self, response):
         """
@@ -180,7 +179,8 @@ class ImdbSpider(scrapy.Spider):
         if height:
             height = height.replace('\xa0', ' ')
 
-        bio_link = $('#name-bio-text span.see-more a::attr(href)').extract_first()
+        bio_link = (response.css('#name-bio-text span.see-more a::attr(href)')
+                            .extract_first())
 
         yield {
             'imdb_id': response.url.split('/')[4],
@@ -203,21 +203,34 @@ class ImdbSpider(scrapy.Spider):
             yield response.follow(bio_link, self.parse_bio)
 
     def parse_bio(self, response):
+        # TODO get overview data
+        # TODO get structured content of spouses and salary
         section = None
         for item in response.css('#bio_content > *'):
+            texts = []
             tag = item.re_first('^<(\w+) ')
             if tag == 'h4':
-                section = tag.css('::text').extract_first()
+                section = item.css('::text').re_first('(.*) \(\d+\)')
+                continue
+            if not section or section == 'Overview':
+                continue
 
             class_ = item.css('::attr(class)').extract_first()
             if tag == 'div' and class_.startswith('soda'):
-                text = item.css('::text').extract_first()
-                if not text:
-                    text = item.css('p::text').extract_first()
+                text = ' '.join(item.css('*::text').extract())
+                if text:
+                    texts = [text]
 
-            yield {
-                'imdb_id': response.url.split('/')[4],
-                'source': 'bio',
-                'section': section,
-                'text': text,
-            }
+            if tag == 'table':
+                for row in item.css('tr'):
+                    text = ' '.join(row.css('*::text').extract())
+                    if text:
+                        texts.append(text)
+
+            for text in texts:
+                yield {
+                    'imdb_id': response.url.split('/')[4],
+                    'source': 'bio',
+                    'section': section,
+                    'text': ' '.join(text.split()) if text else None,
+                }
