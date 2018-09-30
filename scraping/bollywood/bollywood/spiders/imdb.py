@@ -17,7 +17,8 @@ class ImdbSpider(scrapy.Spider):
                   'page': 1}
         url = '{}/search/title?{}'.format(BASE_URL,
                                           urllib.parse.urlencode(params))
-        yield scrapy.Request(url, callback=self.parse_list)
+        #yield scrapy.Request(url, callback=self.parse_list)
+        yield scrapy.Request('https://www.imdb.com/name/nm0451148/bio?ref_=nm_ov_bio_sm', callback=self.parse_bio)
 
     def parse_list(self, response):
         """
@@ -146,8 +147,8 @@ class ImdbSpider(scrapy.Spider):
                                           'a/span', multi=True),
             'certificate': self._detail(storyline, 'Certificate:', 'span'),
             'genres': self._detail(storyline, 'Genres:', multi=True),
-            'country': self._detail(details, 'Country:'),
-            'language': self._detail(details, 'Language:'),
+            'country': self._detail(details, 'Country:', multi=True),
+            'language': self._detail(details, 'Language:', multi=True),
             'release_date': self._detail(details, 'Release Date:', '.'),
             'production_co': self._detail(details, 'Production Co:',
                                           multi=True, seemore=True),
@@ -179,6 +180,8 @@ class ImdbSpider(scrapy.Spider):
         if height:
             height = height.replace('\xa0', ' ')
 
+        bio_link = $('#name-bio-text span.see-more a::attr(href)').extract_first()
+
         yield {
             'imdb_id': response.url.split('/')[4],
             'source': 'person',
@@ -188,9 +191,33 @@ class ImdbSpider(scrapy.Spider):
                              .extract()],
             'bio': response.css('#name-bio-text div.inline::text')
                            .extract_first().strip(),
+            'bio_link': bio_link,
             'awards': awards,
             'height': height,
             'birth_date': birth_date,
             'birth_place': birth_place,
             'photo': response.css('#name-poster::attr(src)').extract_first(),
         }
+
+        if bio_link:
+            yield response.follow(bio_link, self.parse_bio)
+
+    def parse_bio(self, response):
+        section = None
+        for item in response.css('#bio_content > *'):
+            tag = item.re_first('^<(\w+) ')
+            if tag == 'h4':
+                section = tag.css('::text').extract_first()
+
+            class_ = item.css('::attr(class)').extract_first()
+            if tag == 'div' and class_.startswith('soda'):
+                text = item.css('::text').extract_first()
+                if not text:
+                    text = item.css('p::text').extract_first()
+
+            yield {
+                'imdb_id': response.url.split('/')[4],
+                'source': 'bio',
+                'section': section,
+                'text': text,
+            }
