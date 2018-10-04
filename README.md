@@ -1,6 +1,8 @@
 Bollywood workshop
 ==================
 
+![](notebooks/img/bollywood.jpeg)
+
 This repository contains all the files required to follow the Bollywood
 workshop presented at PyCon India 2018.
 
@@ -20,6 +22,11 @@ The set up instructions to create such an environment are listed next.
 - Activate the environment: `source activate bollywood`
 - Change to the notebooks directory: `cd notebooks`
 - Run the jupyter notebook server: `jupyter notebook`
+
+Run online
+----------
+
+[![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/datapythonista/bollywood_workshop/master)
 
 scraping
 --------
